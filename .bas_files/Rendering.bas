@@ -1,10 +1,9 @@
 Attribute VB_Name = "Rendering"
 Option Explicit
 
-Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object, ByVal seq As String, ByVal customerName As String, ByVal wb As Workbook) As String
+Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object, ByVal wb As Workbook) As String
     Dim templatePath As String
     Dim outputRoot As String
-    Dim outputFolder As String
     Dim outputPath As String
     Dim wordApp As Object
     Dim doc As Object
@@ -17,11 +16,7 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
 
     outputRoot = BuildPath(wb.Path, "Output")
     EnsureFolderExists outputRoot
-
-    outputFolder = BuildPath(outputRoot, MakeSafeFilename(customerName))
-    EnsureFolderExists outputFolder
-
-    outputPath = BuildPath(outputFolder, seq & "_" & GetDictString(templateCfg, "file_prefix") & "_" & MakeSafeFilename(customerName) & ".docx")
+    outputPath = BuildAvailableOutputPath(outputRoot, GetDictString(templateCfg, "file_prefix", "document"))
 
     On Error Resume Next
     Set wordApp = GetObject(, "Word.Application")
@@ -44,28 +39,15 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
     Set doc = Nothing
     Set wordApp = Nothing
 
-    RenderTemplate = outputFolder
+    RenderTemplate = outputPath
 End Function
 
 Private Sub ApplyContextToDocument(ByVal doc As Object, ByVal ctx As Object)
-    Dim items As Collection
     Dim story As Object
-    Dim itemValue As Variant
-
-    On Error Resume Next
-    Set items = ctx("items")
-    On Error GoTo 0
 
     For Each story In doc.StoryRanges
         ApplyScalarReplacements story, ctx
-        If Not items Is Nothing Then ExpandItemsInStory story, items
     Next story
-
-    If Not items Is Nothing Then
-        For Each itemValue In items
-            ' Keep late-bound collection access stable during import/compile.
-        Next itemValue
-    End If
 End Sub
 
 Private Sub ApplyScalarReplacements(ByVal rng As Object, ByVal ctx As Object)
@@ -73,76 +55,8 @@ Private Sub ApplyScalarReplacements(ByVal rng As Object, ByVal ctx As Object)
     Dim valueText As String
 
     For Each key In ctx.Keys
-        If LCase$(CStr(key)) <> "items" Then
-            valueText = CellText(ctx(key))
-            ReplaceTokenInRange rng, CStr(key), valueText
-        End If
-    Next key
-End Sub
-
-Private Sub ExpandItemsInStory(ByVal rng As Object, ByVal items As Collection)
-    Dim tbl As Object
-
-    For Each tbl In rng.Tables
-        ExpandItemsInTable tbl, items
-    Next tbl
-End Sub
-
-Private Sub ExpandItemsInTable(ByVal tbl As Object, ByVal items As Collection)
-    Dim startRow As Long
-    Dim endRow As Long
-    Dim rowNo As Long
-    Dim rowText As String
-    Dim currentRow As Long
-    Dim itemIndex As Long
-
-    startRow = 0
-    endRow = 0
-
-    For rowNo = 1 To tbl.Rows.Count
-        rowText = CleanWordCellText(tbl.Rows(rowNo).Range.Text)
-        If InStr(1, rowText, "for item in items", vbTextCompare) > 0 Then startRow = rowNo
-        If InStr(1, rowText, "endfor", vbTextCompare) > 0 Then
-            endRow = rowNo
-            Exit For
-        End If
-    Next rowNo
-
-    If startRow = 0 Or endRow = 0 Then Exit Sub
-    If endRow - startRow <> 2 Then Exit Sub
-
-    currentRow = startRow + 1
-
-    If items.Count = 0 Then
-        tbl.Rows(endRow).Delete
-        tbl.Rows(currentRow).Delete
-        tbl.Rows(startRow).Delete
-        Exit Sub
-    End If
-
-    For rowNo = 2 To items.Count
-        tbl.Rows(currentRow).Select
-        tbl.Application.Selection.InsertRowsBelow 1
-    Next rowNo
-
-    itemIndex = 1
-    Do While itemIndex <= items.Count
-        ReplaceItemRow tbl.Rows(currentRow).Range, items(itemIndex), itemIndex
-        currentRow = currentRow + 1
-        itemIndex = itemIndex + 1
-    Loop
-
-    tbl.Rows(currentRow).Delete
-    tbl.Rows(startRow).Delete
-End Sub
-
-Private Sub ReplaceItemRow(ByVal rng As Object, ByVal item As Object, ByVal itemIndex As Long)
-    Dim key As Variant
-
-    ReplaceTokenInRange rng, "loop.index", CStr(itemIndex)
-
-    For Each key In item.Keys
-        ReplaceTokenInRange rng, "item." & CStr(key), CellText(item(key))
+        valueText = CellText(ctx(key))
+        ReplaceTokenInRange rng, CStr(key), valueText
     Next key
 End Sub
 
@@ -194,3 +108,22 @@ Private Sub ReplaceAllInRange(ByVal rng As Object, ByVal findText As String, ByV
         .Execute Replace:=wdReplaceAll
     End With
 End Sub
+
+Private Function BuildAvailableOutputPath(ByVal outputRoot As String, ByVal filePrefix As String) As String
+    Dim baseName As String
+    Dim versionNo As Long
+    Dim candidatePath As String
+
+    baseName = MakeSafeFilename(filePrefix)
+    If Len(baseName) = 0 Then baseName = "document"
+
+    versionNo = 1
+    Do
+        candidatePath = BuildPath(outputRoot, baseName & "_v" & CStr(versionNo) & ".docx")
+        If Dir$(candidatePath, vbNormal) = vbNullString Then
+            BuildAvailableOutputPath = candidatePath
+            Exit Function
+        End If
+        versionNo = versionNo + 1
+    Loop
+End Function

@@ -4,8 +4,8 @@ Sub OpenCustomerOutputFolder()
 
     Dim folderPath As String
     Dim userchoice As VbMsgBoxResult
-    
-    folderPath = Trim(ThisWorkbook.Sheets("UI_DASHBOARD").Range("B7").Value)
+
+    folderPath = BuildPath(ThisWorkbook.Path, "Output")
 
     If folderPath = "" Then
         MsgBox "No output folder path found.", vbExclamation
