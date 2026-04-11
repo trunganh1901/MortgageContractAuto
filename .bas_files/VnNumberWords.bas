@@ -1,7 +1,9 @@
 Attribute VB_Name = "VnNumberWords"
 Option Explicit
 
-Public Function number_to_words(ByVal value As Variant, Optional ByVal decimal_places As Long = 0, Optional ByVal use_commas As Boolean = False) As String
+Private Const AUTO_DECIMAL_PLACES As Long = -1
+
+Public Function number_to_words(ByVal value As Variant, Optional ByVal decimal_places As Long = AUTO_DECIMAL_PLACES, Optional ByVal use_commas As Boolean = False) As String
     number_to_words = NumberToWords(value, decimal_places, use_commas)
 End Function
 
@@ -9,30 +11,23 @@ Public Function vnd_to_words(ByVal amount As Variant, Optional ByVal use_commas 
     vnd_to_words = VndToWords(amount, use_commas, append_chan)
 End Function
 
-Public Function NumberToWords(ByVal value As Variant, Optional ByVal decimalPlaces As Long = 0, Optional ByVal useCommas As Boolean = False) As String
-    Dim numberValue As Double
-    Dim normalizedText As String
-    Dim decimalText As String
+Public Function NumberToWords(ByVal value As Variant, Optional ByVal decimalPlaces As Long = AUTO_DECIMAL_PLACES, Optional ByVal useCommas As Boolean = False) As String
+    Dim negativeValue As Boolean
+    Dim integerDigits As String
+    Dim decimalDigits As String
     Dim result As String
 
-    If decimalPlaces < 0 Then
-        NumberToWords = vbNullString
-        Exit Function
+    If decimalPlaces < AUTO_DECIMAL_PLACES Then Exit Function
+    If Not ParseInputNumber(value, negativeValue, integerDigits, decimalDigits) Then Exit Function
+
+    result = ReadIntegerDigits(integerDigits, useCommas)
+    decimalDigits = NormalizeDecimalDigits(decimalDigits, decimalPlaces)
+
+    If Len(decimalDigits) > 0 Then
+        result = result & " " & WordPhay() & " " & ReadDecimalDigits(decimalDigits)
     End If
 
-    If Not TryNormalizeNumber(value, numberValue, normalizedText) Then
-        NumberToWords = vbNullString
-        Exit Function
-    End If
-
-    result = ReadIntegerPart(Fix(Abs(numberValue)), useCommas)
-
-    If decimalPlaces > 0 Then
-        decimalText = TruncateDecimalText(normalizedText, decimalPlaces)
-        result = result & " " & WordPhay() & " " & ReadDecimalPart(decimalText)
-    End If
-
-    If numberValue < 0 Then
+    If negativeValue And result <> DigitWord(0) Then
         result = WordAm() & " " & result
     End If
 
@@ -40,50 +35,111 @@ Public Function NumberToWords(ByVal value As Variant, Optional ByVal decimalPlac
 End Function
 
 Public Function VndToWords(ByVal amount As Variant, Optional ByVal useCommas As Boolean = False, Optional ByVal appendChan As Boolean = True) As String
-    Dim numberValue As Double
-    Dim normalizedText As String
+    Dim negativeValue As Boolean
+    Dim integerDigits As String
+    Dim decimalDigits As String
     Dim result As String
-    Dim hasDecimal As Boolean
 
-    If Not TryNormalizeNumber(amount, numberValue, normalizedText) Then
-        VndToWords = vbNullString
-        Exit Function
-    End If
+    If Not ParseInputNumber(amount, negativeValue, integerDigits, decimalDigits) Then Exit Function
 
-    hasDecimal = HasNonZeroDecimal(normalizedText)
-    result = ReadIntegerPart(Fix(Abs(numberValue)), useCommas)
+    result = ReadIntegerDigits(integerDigits, useCommas)
 
-    If appendChan And Not hasDecimal Then
+    If Len(decimalDigits) > 0 Then
+        result = result & " " & WordPhay() & " " & ReadDecimalDigits(decimalDigits)
+        result = result & " " & WordDong()
+    ElseIf appendChan Then
         result = result & " " & WordDong() & " " & WordChan()
     Else
         result = result & " " & WordDong()
     End If
 
-    If numberValue < 0 Then
+    If negativeValue And result <> DigitWord(0) & " " & WordDong() Then
         result = WordAm() & " " & result
     End If
 
     VndToWords = UpperFirst(result)
 End Function
 
-Private Function TryNormalizeNumber(ByVal value As Variant, ByRef numberValue As Double, ByRef normalizedText As String) As Boolean
+Private Function ParseInputNumber(ByVal value As Variant, ByRef negativeValue As Boolean, ByRef integerDigits As String, ByRef decimalDigits As String) As Boolean
+    Dim rawText As String
+
+    If TryParseNumericInput(value, negativeValue, integerDigits, decimalDigits) Then
+        ParseInputNumber = True
+        Exit Function
+    End If
+
+    rawText = InputText(value)
+    If Len(rawText) = 0 Then Exit Function
+
+    ParseInputNumber = ParseNumberText(rawText, negativeValue, integerDigits, decimalDigits)
+End Function
+
+Private Function TryParseNumericInput(ByVal value As Variant, ByRef negativeValue As Boolean, ByRef integerDigits As String, ByRef decimalDigits As String) As Boolean
+    If IsObject(value) Then
+        If TypeName(value) <> "Range" Then Exit Function
+        TryParseNumericInput = ParseNumericVariant(value.Value2, negativeValue, integerDigits, decimalDigits)
+        Exit Function
+    End If
+
+    TryParseNumericInput = ParseNumericVariant(value, negativeValue, integerDigits, decimalDigits)
+End Function
+
+Private Function InputText(ByVal value As Variant) As String
+    On Error Resume Next
+
+    If IsObject(value) Then
+        If TypeName(value) = "Range" Then
+            InputText = CStr(value.Value2)
+        End If
+    Else
+        InputText = CStr(value)
+    End If
+End Function
+
+Private Function ParseNumericVariant(ByVal value As Variant, ByRef negativeValue As Boolean, ByRef integerDigits As String, ByRef decimalDigits As String) As Boolean
+    Dim rawText As String
+
+    If VarType(value) = vbString Then Exit Function
+    If Not IsNumeric(value) Then Exit Function
+
+    rawText = NumericValueToText(CDbl(value))
+    If Len(rawText) = 0 Then Exit Function
+
+    ParseNumericVariant = ParseNumberText(rawText, negativeValue, integerDigits, decimalDigits)
+End Function
+
+Private Function NumericValueToText(ByVal numberValue As Double) As String
+    Dim currentDecimalSep As String
+    Dim formattedText As String
+
+    currentDecimalSep = Application.International(xlDecimalSeparator)
+    formattedText = Format$(Round(numberValue, 12), "0.############")
+
+    If Len(formattedText) = 0 Then Exit Function
+
+    If currentDecimalSep <> "." Then
+        formattedText = Replace(formattedText, ".", currentDecimalSep)
+    End If
+
+    NumericValueToText = formattedText
+End Function
+
+Private Function ParseNumberText(ByVal rawText As String, ByRef negativeValue As Boolean, ByRef integerDigits As String, ByRef decimalDigits As String) As Boolean
     Dim textValue As String
     Dim decimalSep As String
     Dim thousandSep As String
+    Dim currentDecimalSep As String
+    Dim currentThousandSep As String
     Dim lastComma As Long
     Dim lastDot As Long
     Dim commaCount As Long
     Dim dotCount As Long
-    Dim currentDecimalSep As String
-    Dim currentThousandSep As String
+    Dim splitPos As Long
 
-    On Error GoTo Fail
+    textValue = SanitizeNumberText(rawText)
+    If Len(textValue) = 0 Then Exit Function
 
-    textValue = Trim$(CStr(value))
-    textValue = Replace(textValue, ChrW$(160), "")
-    textValue = Replace(textValue, " ", "")
-
-    If Len(textValue) = 0 Then GoTo Fail
+    If Not StripSign(textValue, negativeValue) Then Exit Function
 
     currentDecimalSep = Application.International(xlDecimalSeparator)
     currentThousandSep = Application.International(xlThousandsSeparator)
@@ -93,9 +149,57 @@ Private Function TryNormalizeNumber(ByVal value As Variant, ByRef numberValue As
     commaCount = Len(textValue) - Len(Replace(textValue, ",", ""))
     dotCount = Len(textValue) - Len(Replace(textValue, ".", ""))
 
-    decimalSep = vbNullString
-    thousandSep = vbNullString
+    ResolveSeparators textValue, lastComma, lastDot, commaCount, dotCount, currentDecimalSep, currentThousandSep, decimalSep, thousandSep
 
+    If Len(thousandSep) > 0 Then
+        textValue = Replace(textValue, thousandSep, "")
+    End If
+
+    If Len(decimalSep) > 0 Then
+        splitPos = InStrRev(textValue, decimalSep)
+        integerDigits = Left$(textValue, splitPos - 1)
+        decimalDigits = Mid$(textValue, splitPos + 1)
+    Else
+        integerDigits = textValue
+        decimalDigits = vbNullString
+    End If
+
+    integerDigits = KeepDigitsOnly(integerDigits)
+    decimalDigits = KeepDigitsOnly(decimalDigits)
+
+    If Len(integerDigits) = 0 And Len(decimalDigits) = 0 Then Exit Function
+    If Len(integerDigits) = 0 Then integerDigits = "0"
+
+    integerDigits = TrimLeadingZeros(integerDigits)
+    ParseNumberText = True
+End Function
+
+Private Function SanitizeNumberText(ByVal rawText As String) As String
+    Dim textValue As String
+
+    textValue = Trim$(rawText)
+    textValue = Replace(textValue, ChrW$(160), "")
+    textValue = Replace(textValue, " ", "")
+    textValue = Replace(textValue, vbTab, "")
+
+    SanitizeNumberText = textValue
+End Function
+
+Private Function StripSign(ByRef textValue As String, ByRef negativeValue As Boolean) As Boolean
+    If Len(textValue) = 0 Then Exit Function
+
+    Select Case Left$(textValue, 1)
+        Case "+"
+            textValue = Mid$(textValue, 2)
+        Case "-"
+            negativeValue = True
+            textValue = Mid$(textValue, 2)
+    End Select
+
+    StripSign = (Len(textValue) > 0)
+End Function
+
+Private Sub ResolveSeparators(ByVal textValue As String, ByVal lastComma As Long, ByVal lastDot As Long, ByVal commaCount As Long, ByVal dotCount As Long, ByVal currentDecimalSep As String, ByVal currentThousandSep As String, ByRef decimalSep As String, ByRef thousandSep As String)
     If lastComma > 0 And lastDot > 0 Then
         If lastComma > lastDot Then
             decimalSep = ","
@@ -104,89 +208,93 @@ Private Function TryNormalizeNumber(ByVal value As Variant, ByRef numberValue As
             decimalSep = "."
             thousandSep = ","
         End If
-    ElseIf lastComma > 0 Then
-        ResolveSingleSeparator textValue, ",", commaCount, decimalSep, thousandSep
+        Exit Sub
+    End If
+
+    If lastComma > 0 Then
+        ResolveSingleSeparator textValue, ",", commaCount, currentDecimalSep, currentThousandSep, decimalSep, thousandSep
     ElseIf lastDot > 0 Then
-        ResolveSingleSeparator textValue, ".", dotCount, decimalSep, thousandSep
+        ResolveSingleSeparator textValue, ".", dotCount, currentDecimalSep, currentThousandSep, decimalSep, thousandSep
     End If
+End Sub
 
-    If Len(thousandSep) > 0 Then textValue = Replace(textValue, thousandSep, "")
-    If Len(currentThousandSep) > 0 And currentThousandSep <> decimalSep Then
-        textValue = Replace(textValue, currentThousandSep, "")
-    End If
-
-    If Len(decimalSep) > 0 And decimalSep <> currentDecimalSep Then
-        textValue = Replace(textValue, decimalSep, currentDecimalSep)
-    End If
-
-    If Not IsNumeric(textValue) Then GoTo Fail
-
-    numberValue = CDbl(textValue)
-    normalizedText = Replace(textValue, currentDecimalSep, ".")
-    TryNormalizeNumber = True
-    Exit Function
-
-Fail:
-    numberValue = 0#
-    normalizedText = vbNullString
-    TryNormalizeNumber = False
-End Function
-
-Private Sub ResolveSingleSeparator(ByVal textValue As String, ByVal sep As String, ByVal sepCount As Long, ByRef decimalSep As String, ByRef thousandSep As String)
+Private Sub ResolveSingleSeparator(ByVal textValue As String, ByVal sep As String, ByVal sepCount As Long, ByVal currentDecimalSep As String, ByVal currentThousandSep As String, ByRef decimalSep As String, ByRef thousandSep As String)
     Dim lastPos As Long
     Dim digitsRight As Long
+
+    If sep = currentDecimalSep And sep <> currentThousandSep Then
+        decimalSep = sep
+        Exit Sub
+    End If
+
+    If sep = currentThousandSep And sep <> currentDecimalSep Then
+        thousandSep = sep
+        Exit Sub
+    End If
 
     lastPos = InStrRev(textValue, sep)
     digitsRight = Len(textValue) - lastPos
 
     If sepCount > 1 Then
-        thousandSep = sep
-        Exit Sub
-    End If
-
-    If digitsRight = 3 Then
+        If digitsRight = 3 Then
+            thousandSep = sep
+        Else
+            decimalSep = sep
+        End If
+    ElseIf digitsRight = 3 Then
         thousandSep = sep
     Else
         decimalSep = sep
     End If
 End Sub
 
-Private Function ReadIntegerPart(ByVal numberValue As Double, Optional ByVal useCommas As Boolean = False) As String
+Private Function NormalizeDecimalDigits(ByVal decimalDigits As String, ByVal decimalPlaces As Long) As String
+    If decimalPlaces = 0 Then Exit Function
+
+    If decimalPlaces > 0 Then
+        decimalDigits = Left$(decimalDigits & String$(decimalPlaces, "0"), decimalPlaces)
+    End If
+
+    NormalizeDecimalDigits = decimalDigits
+End Function
+
+Private Function ReadIntegerDigits(ByVal integerDigits As String, Optional ByVal useCommas As Boolean = False) As String
     Dim groups() As String
-    Dim groupIndex As Long
-    Dim groupValue As Long
     Dim highestGroup As Long
-    Dim text As String
+    Dim groupIndex As Long
+    Dim groupText As String
     Dim result As String
     Dim separator As String
 
-    If numberValue = 0 Then
-        ReadIntegerPart = DigitWord(0)
+    integerDigits = TrimLeadingZeros(KeepDigitsOnly(integerDigits))
+    If Len(integerDigits) = 0 Then integerDigits = "0"
+
+    If integerDigits = "0" Then
+        ReadIntegerDigits = DigitWord(0)
         Exit Function
     End If
 
-    groups = SplitThousands(CStr(Fix(numberValue)))
+    groups = SplitThousands(integerDigits)
     highestGroup = HighestNonZeroGroup(groups)
-    separator = " "
-    If useCommas Then separator = ", "
+    separator = IIf(useCommas, ", ", " ")
 
     For groupIndex = UBound(groups) To LBound(groups) Step -1
-        groupValue = CLng(groups(groupIndex))
-        If groupValue <> 0 Then
-            text = ReadThreeDigits(groupValue, groupIndex < highestGroup)
+        If CLng(groups(groupIndex)) <> 0 Then
+            groupText = ReadThreeDigits(CLng(groups(groupIndex)), groupIndex < highestGroup)
+
             If Len(GroupUnit(groupIndex)) > 0 Then
-                text = text & " " & GroupUnit(groupIndex)
+                groupText = groupText & " " & GroupUnit(groupIndex)
             End If
 
             If Len(result) = 0 Then
-                result = text
+                result = groupText
             Else
-                result = result & separator & text
+                result = result & separator & groupText
             End If
         End If
     Next groupIndex
 
-    ReadIntegerPart = result
+    ReadIntegerDigits = result
 End Function
 
 Private Function ReadThreeDigits(ByVal groupValue As Long, ByVal fullRead As Boolean) As String
@@ -225,58 +333,37 @@ Private Function ReadThreeDigits(ByVal groupValue As Long, ByVal fullRead As Boo
     ReadThreeDigits = text
 End Function
 
-Private Function ReadDecimalPart(ByVal decimalText As String) As String
+Private Function ReadDecimalDigits(ByVal decimalDigits As String) As String
+    If Len(decimalDigits) = 0 Then Exit Function
+
+    If Left$(decimalDigits, 1) = "0" And Len(decimalDigits) > 1 Then
+        ReadDecimalDigits = ReadDigitByDigit(decimalDigits)
+    Else
+        ReadDecimalDigits = ReadIntegerDigits(decimalDigits, False)
+    End If
+End Function
+
+Private Function ReadDigitByDigit(ByVal digitText As String) As String
     Dim i As Long
     Dim text As String
 
-    For i = 1 To Len(decimalText)
-        AddWord text, DigitWord(CLng(Mid$(decimalText, i, 1)))
+    For i = 1 To Len(digitText)
+        AddWord text, DigitWord(CLng(Mid$(digitText, i, 1)))
     Next i
 
-    ReadDecimalPart = text
-End Function
-
-Private Function TruncateDecimalText(ByVal normalizedText As String, ByVal decimalPlaces As Long) As String
-    Dim p As Long
-    Dim decimalText As String
-
-    p = InStr(1, normalizedText, ".", vbBinaryCompare)
-    If p = 0 Then
-        TruncateDecimalText = String$(decimalPlaces, "0")
-        Exit Function
-    End If
-
-    decimalText = Mid$(normalizedText, p + 1)
-    decimalText = Left$(decimalText, decimalPlaces)
-
-    If Len(decimalText) < decimalPlaces Then
-        decimalText = decimalText & String$(decimalPlaces - Len(decimalText), "0")
-    End If
-
-    TruncateDecimalText = decimalText
-End Function
-
-Private Function HasNonZeroDecimal(ByVal normalizedText As String) As Boolean
-    Dim p As Long
-    Dim decimalText As String
-
-    p = InStr(1, normalizedText, ".", vbBinaryCompare)
-    If p = 0 Then Exit Function
-
-    decimalText = Mid$(normalizedText, p + 1)
-    decimalText = Replace(decimalText, "0", "")
-    HasNonZeroDecimal = (Len(decimalText) > 0)
+    ReadDigitByDigit = text
 End Function
 
 Private Function SplitThousands(ByVal textValue As String) As String()
     Dim groups() As String
+    Dim index As Long
     Dim partText As String
-    Dim i As Long
 
-    i = -1
+    index = -1
     Do While Len(textValue) > 0
-        i = i + 1
-        ReDim Preserve groups(0 To i)
+        index = index + 1
+        ReDim Preserve groups(0 To index)
+
         If Len(textValue) > 3 Then
             partText = Right$(textValue, 3)
             textValue = Left$(textValue, Len(textValue) - 3)
@@ -284,7 +371,8 @@ Private Function SplitThousands(ByVal textValue As String) As String()
             partText = textValue
             textValue = vbNullString
         End If
-        groups(i) = partText
+
+        groups(index) = partText
     Loop
 
     SplitThousands = groups
@@ -299,6 +387,39 @@ Private Function HighestNonZeroGroup(ByRef groups() As String) As Long
             Exit Function
         End If
     Next i
+End Function
+
+Private Function KeepDigitsOnly(ByVal textValue As String) As String
+    Dim i As Long
+    Dim ch As String
+
+    For i = 1 To Len(textValue)
+        ch = Mid$(textValue, i, 1)
+        If ch >= "0" And ch <= "9" Then
+            KeepDigitsOnly = KeepDigitsOnly & ch
+        End If
+    Next i
+End Function
+
+Private Function TrimLeadingZeros(ByVal textValue As String) As String
+    Do While Len(textValue) > 1 And Left$(textValue, 1) = "0"
+        textValue = Mid$(textValue, 2)
+    Loop
+
+    TrimLeadingZeros = textValue
+End Function
+
+Private Function GroupUnit(ByVal groupIndex As Long) As String
+    Select Case groupIndex
+        Case 0: GroupUnit = vbNullString
+        Case 1: GroupUnit = VnText("6E;67;68;EC;6E")
+        Case 2: GroupUnit = VnText("74;72;69;1EC7;75")
+        Case 3: GroupUnit = VnText("74;1EF7")
+        Case 4: GroupUnit = VnText("6E;67;68;EC;6E;20;74;1EF7")
+        Case 5: GroupUnit = VnText("74;72;69;1EC7;75;20;74;1EF7")
+        Case 6: GroupUnit = VnText("74;1EF7;20;74;1EF7")
+        Case Else: GroupUnit = vbNullString
+    End Select
 End Function
 
 Private Function DigitWord(ByVal digitValue As Long) As String
@@ -317,23 +438,23 @@ Private Function DigitWord(ByVal digitValue As Long) As String
 End Function
 
 Private Function UnitWord(ByVal unitValue As Long, ByVal tenValue As Long) As String
-    If unitValue = 1 And tenValue > 1 Then
-        UnitWord = VnText("6D;1ED1;74")
-    ElseIf unitValue = 5 And tenValue >= 1 Then
-        UnitWord = VnText("6C;103;6D")
-    Else
-        UnitWord = DigitWord(unitValue)
-    End If
-End Function
-
-Private Function GroupUnit(ByVal groupIndex As Long) As String
-    Select Case groupIndex
-        Case 0: GroupUnit = vbNullString
-        Case 1: GroupUnit = VnText("6E;67;68;EC;6E")
-        Case 2: GroupUnit = VnText("74;72;69;1EC7;75")
-        Case 3: GroupUnit = VnText("74;1EF7")
-        Case 4: GroupUnit = VnText("6E;67;68;EC;6E;20;74;1EF7")
-        Case Else: GroupUnit = vbNullString
+    Select Case unitValue
+        Case 1
+            If tenValue > 1 Then
+                UnitWord = VnText("6D;1ED1;74")
+            Else
+                UnitWord = VnText("6D;1ED9;74")
+            End If
+        Case 4
+            UnitWord = VnText("62;1ED1;6E")
+        Case 5
+            If tenValue >= 1 Then
+                UnitWord = VnText("6C;103;6D")
+            Else
+                UnitWord = VnText("6E;103;6D")
+            End If
+        Case Else
+            UnitWord = DigitWord(unitValue)
     End Select
 End Function
 
@@ -352,12 +473,12 @@ Private Function UpperFirst(ByVal textValue As String) As String
     UpperFirst = UCase$(Left$(textValue, 1)) & Mid$(textValue, 2)
 End Function
 
-Private Function WordPhay() As String
-    WordPhay = VnText("70;68;1EA9;79")
-End Function
-
 Private Function WordAm() As String
     WordAm = VnText("E2;6D")
+End Function
+
+Private Function WordPhay() As String
+    WordPhay = VnText("70;68;1EA9;79")
 End Function
 
 Private Function WordDong() As String
