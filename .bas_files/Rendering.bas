@@ -64,7 +64,7 @@ Private Sub ApplyContextToDocument(ByVal doc As Object, ByVal ctx As Object)
     Dim story As Object
 
     For Each story In doc.StoryRanges
-        ApplyScalarReplacements story, ctx
+        ApplyContextToStoryRange story, ctx
     Next story
 End Sub
 
@@ -92,39 +92,51 @@ End Sub
 Private Sub ReplaceWildcardToken(ByVal rng As Object, ByVal tokenName As String, ByVal replaceText As String, ByVal allowLeftSpaces As Boolean, ByVal allowRightSpaces As Boolean)
     Dim leftPart As String
     Dim rightPart As String
+    Dim findPattern As String
 
     leftPart = IIf(allowLeftSpaces, "[ ]@", "")
     rightPart = IIf(allowRightSpaces, "[ ]@", "")
 
-    With rng.Find
-        .ClearFormatting
-        .Replacement.ClearFormatting
-        .Text = "\{\{" & leftPart & EscapeWordFindText(tokenName) & rightPart & "\}\}"
-        .Replacement.Text = replaceText
-        .Forward = True
-        .Wrap = wdFindContinue
-        .Format = False
-        .MatchCase = False
-        .MatchWholeWord = False
-        .MatchWildcards = True
-        .Execute .Text, False, False, True, False, False, True, wdFindContinue, False, replaceText, wdReplaceAll
-    End With
+    findPattern = "\{\{" & leftPart & EscapeWordFindText(tokenName) & rightPart & "\}\}"
+    ReplaceMatchesInRange rng, findPattern, replaceText, True
 End Sub
 
 Private Sub ReplaceAllInRange(ByVal rng As Object, ByVal findText As String, ByVal replaceText As String)
-    With rng.Find
+    ReplaceMatchesInRange rng, findText, replaceText, False
+End Sub
+
+Private Sub ReplaceMatchesInRange(ByVal sourceRange As Object, ByVal findText As String, ByVal replaceText As String, ByVal useWildcards As Boolean)
+    Dim searchRange As Object
+
+    Set searchRange = sourceRange.Duplicate
+
+    With searchRange.Find
         .ClearFormatting
-        .Replacement.ClearFormatting
         .Text = findText
-        .Replacement.Text = replaceText
         .Forward = True
-        .Wrap = wdFindContinue
+        .Wrap = 0
         .Format = False
         .MatchCase = False
         .MatchWholeWord = False
-        .MatchWildcards = False
-        .Execute .Text, False, False, False, False, False, True, wdFindContinue, False, replaceText, wdReplaceAll
+        .MatchWildcards = useWildcards
     End With
+
+    Do While searchRange.Find.Execute
+        searchRange.Text = replaceText
+        searchRange.Collapse wdCollapseEnd
+    Loop
+
+    Set searchRange = Nothing
+End Sub
+
+Private Sub ApplyContextToStoryRange(ByVal storyRange As Object, ByVal ctx As Object)
+    Dim currentRange As Object
+
+    Set currentRange = storyRange
+    Do While Not currentRange Is Nothing
+        ApplyScalarReplacements currentRange, ctx
+        Set currentRange = currentRange.NextStoryRange
+    Loop
 End Sub
 
 Private Function BuildAvailableOutputPath(ByVal outputRoot As String, ByVal filePrefix As String) As String

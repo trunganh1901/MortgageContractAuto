@@ -6,6 +6,7 @@ Public Const wdFindContinue As Long = 1
 Public Const wdReplaceAll As Long = 2
 Public Const wdFormatXMLDocument As Long = 12
 Public Const wdDoNotSaveChanges As Long = 0
+Public Const wdCollapseEnd As Long = 0
 
 Public Function ToNumber(ByVal value As Variant) As Double
     Dim textValue As String
