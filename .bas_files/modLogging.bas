@@ -22,7 +22,7 @@ Public Function CreateExportLog(ByVal wb As Workbook, ByVal ctx As Object, ByVal
     logEntry("duration_seconds") = 0
     logEntry("workbook_name") = wb.Name
     logEntry("workbook_path") = wb.FullName
-    logEntry("log_folder") = BuildStructuredFolder(logRoot, ctx, "document")
+    logEntry("log_folder") = BuildPath(logRoot, Format$(ResolveOutputDate(ctx), "yyyy"))
     logEntry.Add "context", contextSnapshot
     logEntry("error_message") = vbNullString
 

@@ -105,7 +105,7 @@ Generated files must be saved in a structured folder system (e.g., by year/month
 
 ## FILE SYSTEM RULES
 
-- Documents must be stored by Year/Month/Type
+- Documents must be stored by Year/Month
 - File names must include versioning (_v1, _v2, ...)
 - File names must be cleaned (no special characters)
 - System must never overwrite existing files
