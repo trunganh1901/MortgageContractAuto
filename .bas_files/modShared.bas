@@ -152,6 +152,28 @@ Public Function CellText(ByVal value As Variant) As String
     End If
 End Function
 
+Public Function NormalizeLineBreaks(ByVal text As String, Optional ByVal lineBreak As String = vbLf) As String
+    Dim normalized As String
+
+    normalized = text
+    normalized = Replace$(normalized, vbCrLf, vbLf)
+    normalized = Replace$(normalized, vbCr, vbLf)
+
+    If lineBreak <> vbLf Then
+        normalized = Replace$(normalized, vbLf, lineBreak)
+    End If
+
+    NormalizeLineBreaks = normalized
+End Function
+
+Public Function ExcelCellText(ByVal value As Variant) As String
+    ExcelCellText = NormalizeLineBreaks(CellText(value), vbLf)
+End Function
+
+Public Function WordReplaceText(ByVal value As Variant) As String
+    WordReplaceText = NormalizeLineBreaks(CellText(value), vbCr)
+End Function
+
 Public Function BuildPath(ParamArray parts() As Variant) As String
     Dim i As Long
     Dim result As String

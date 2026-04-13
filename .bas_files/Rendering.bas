@@ -73,7 +73,7 @@ Private Sub ApplyScalarReplacements(ByVal rng As Object, ByVal ctx As Object)
     Dim valueText As String
 
     For Each key In ctx.Keys
-        valueText = CellText(ctx(key))
+        valueText = WordReplaceText(ctx(key))
         ReplaceTokenInRange rng, CStr(key), valueText
     Next key
 End Sub

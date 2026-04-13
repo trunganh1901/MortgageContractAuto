@@ -51,7 +51,7 @@ Public Function BuildContext(ByVal wb As Workbook) As Object
     For rowNo = 1 To lastRow
         keyText = Trim$(CellText(ws.Cells(rowNo, "A").Value))
         If Len(keyText) > 0 Then
-            valueText = CellText(ws.Cells(rowNo, "D").Value)
+            valueText = ExcelCellText(ws.Cells(rowNo, "D").Value)
             If Len(valueText) > 0 Then
                 ctx(keyText) = valueText
             End If
