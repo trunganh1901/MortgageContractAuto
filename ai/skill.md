@@ -89,6 +89,8 @@ Generated DOCX files should follow:
 Example:
 contract_ABC_20260410.docx
 
+Generated files must be saved in a structured folder system (e.g., by year/month) to ensure organization and prevent overwriting.
+
 ---
 
 ## FUTURE EXTENSIONS

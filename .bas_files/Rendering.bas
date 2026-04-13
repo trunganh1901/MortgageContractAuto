@@ -4,6 +4,7 @@ Option Explicit
 Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object, ByVal wb As Workbook) As String
     Dim templatePath As String
     Dim outputRoot As String
+    Dim outputFolder As String
     Dim outputPath As String
     Dim wordApp As Object
     Dim doc As Object
@@ -15,8 +16,9 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
     End If
 
     outputRoot = BuildPath(wb.Path, "Output")
-    EnsureFolderExists outputRoot
-    outputPath = BuildAvailableOutputPath(outputRoot, GetDictString(templateCfg, "file_prefix", "document"))
+    outputFolder = BuildStructuredFolder(outputRoot, ctx, GetDictString(templateCfg, "template_code", "document"))
+    EnsureFolderTreeExists outputFolder
+    outputPath = BuildAvailableOutputPath(outputFolder, GetDictString(ctx, "CIF", "") & "_" & GetDictString(ctx, "NAME", ""))
 
     On Error Resume Next
     Set wordApp = GetObject(, "Word.Application")

@@ -199,6 +199,63 @@ Public Sub EnsureFolderExists(ByVal folderPath As String)
     If Not fso.FolderExists(folderPath) Then fso.CreateFolder folderPath
 End Sub
 
+Public Sub EnsureFolderTreeExists(ByVal folderPath As String)
+    Dim fso As Object
+    Dim parentPath As String
+
+    If Len(Trim$(folderPath)) = 0 Then Exit Sub
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If fso.FolderExists(folderPath) Then Exit Sub
+
+    parentPath = Left$(folderPath, InStrRev(folderPath, "\") - 1)
+    If Len(parentPath) > 0 And Not fso.FolderExists(parentPath) Then
+        EnsureFolderTreeExists parentPath
+    End If
+
+    If Not fso.FolderExists(folderPath) Then fso.CreateFolder folderPath
+End Sub
+
+Public Function ResolveOutputDate(ByVal ctx As Object) As Date
+    Dim candidateKeys As Variant
+    Dim keyItem As Variant
+    Dim rawText As String
+
+    candidateKeys = Array("date", "document_date", "contract_date", "sign_date", "created_date")
+
+    For Each keyItem In candidateKeys
+        If ctx.Exists(CStr(keyItem)) Then
+            rawText = Trim$(CellText(ctx(CStr(keyItem))))
+            If TryParseDateText(rawText, ResolveOutputDate) Then Exit Function
+        End If
+    Next keyItem
+
+    ResolveOutputDate = Date
+End Function
+
+Public Function ResolveOutputBucket(ByVal ctx As Object, Optional ByVal fallbackBucket As String = "document") As String
+    Dim bucketText As String
+
+    If ctx.Exists("CIF") Then
+        bucketText = MakeSafeFilename(CellText(ctx("CIF")))
+    End If
+
+    If Len(bucketText) = 0 Then bucketText = MakeSafeFilename(fallbackBucket)
+    If Len(bucketText) = 0 Then bucketText = "document"
+
+    ResolveOutputBucket = bucketText
+End Function
+
+Public Function BuildStructuredFolder(ByVal rootPath As String, ByVal ctx As Object, Optional ByVal fallbackBucket As String = "document") As String
+    Dim outputDate As Date
+    Dim bucketName As String
+
+    outputDate = ResolveOutputDate(ctx)
+    bucketName = ResolveOutputBucket(ctx, fallbackBucket)
+
+    BuildStructuredFolder = BuildPath(rootPath, Format$(outputDate, "yyyy"), Format$(outputDate, "mm"), bucketName)
+End Function
+
 Public Function CleanWordCellText(ByVal text As String) As String
     CleanWordCellText = Replace$(Replace$(text, Chr$(13), vbNullString), Chr$(7), vbNullString)
 End Function
@@ -293,4 +350,39 @@ Private Function RegexReplace(ByVal text As String, ByVal pattern As String, ByV
     re.Global = True
     re.Pattern = pattern
     RegexReplace = re.Replace(text, replaceWith)
+End Function
+
+Private Function TryParseDateText(ByVal text As String, ByRef parsedDate As Date) As Boolean
+    Dim normalized As String
+    Dim parts() As String
+
+    normalized = Trim$(text)
+    If Len(normalized) = 0 Then Exit Function
+
+    normalized = Replace$(normalized, ".", "/")
+    normalized = Replace$(normalized, "-", "/")
+
+    If InStr(normalized, "/") > 0 Then
+        parts = Split(normalized, "/")
+        If UBound(parts) = 2 Then
+            If Len(parts(0)) = 4 Then
+                On Error Resume Next
+                parsedDate = DateSerial(CLng(parts(0)), CLng(parts(1)), CLng(parts(2)))
+                TryParseDateText = (Err.Number = 0)
+                On Error GoTo 0
+                If TryParseDateText Then Exit Function
+            ElseIf Len(parts(2)) = 4 Then
+                On Error Resume Next
+                parsedDate = DateSerial(CLng(parts(2)), CLng(parts(1)), CLng(parts(0)))
+                TryParseDateText = (Err.Number = 0)
+                On Error GoTo 0
+                If TryParseDateText Then Exit Function
+            End If
+        End If
+    End If
+
+    On Error Resume Next
+    parsedDate = CDate(text)
+    TryParseDateText = (Err.Number = 0)
+    On Error GoTo 0
 End Function
