@@ -27,6 +27,7 @@ Public Function ExportDocument() As String
     End If
 
     ExportDocument = lastOutputPath
+    PromptOpenOutputFolder lastOutputPath
     Exit Function
 
 ErrorHandler:

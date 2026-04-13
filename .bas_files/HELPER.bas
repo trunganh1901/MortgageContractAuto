@@ -1,13 +1,17 @@
 Attribute VB_Name = "HELPER"
 Option Explicit
-Sub OpenCustomerOutputFolder()
 
+Public Sub PromptOpenOutputFolder(Optional ByVal outputPath As String = "")
     Dim folderPath As String
-    Dim userchoice As VbMsgBoxResult
+    Dim userChoice As VbMsgBoxResult
 
-    folderPath = BuildPath(ThisWorkbook.Path, "Output")
+    If Len(Trim$(outputPath)) > 0 Then
+        folderPath = Left$(outputPath, InStrRev(outputPath, "\") - 1)
+    Else
+        folderPath = BuildPath(ThisWorkbook.Path, "Output")
+    End If
 
-    If folderPath = "" Then
+    If Len(folderPath) = 0 Then
         MsgBox "No output folder path found.", vbExclamation
         Exit Sub
     End If
@@ -16,23 +20,26 @@ Sub OpenCustomerOutputFolder()
         MsgBox "Folder not found:" & vbCrLf & folderPath, vbExclamation
         Exit Sub
     End If
-    
-    ' Success + ask to open folder
-    userchoice = MsgBox( _
-        "Contracts generated successfully!" & vbCrLf & vbCrLf & _
+
+    userChoice = MsgBox( _
+        "Export completed successfully." & vbCrLf & vbCrLf & _
         "Output folder:" & vbCrLf & folderPath & vbCrLf & vbCrLf & _
         "Open this folder now?", _
         vbQuestion + vbYesNo, _
         "Done" _
     )
 
-    If userchoice = vbYes Then
-        If folderPath <> "" And Dir(folderPath, vbDirectory) <> "" Then
+    If userChoice = vbYes Then
+        If Len(folderPath) > 0 And Dir(folderPath, vbDirectory) <> "" Then
             Shell "explorer.exe """ & folderPath & """", vbNormalFocus
         Else
             MsgBox "Output folder not found.", vbExclamation
         End If
     End If
+End Sub
+
+Public Sub OpenCustomerOutputFolder()
+    PromptOpenOutputFolder
 End Sub
 
 Function IncrementSTT_HD() As String

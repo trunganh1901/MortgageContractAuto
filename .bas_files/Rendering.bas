@@ -31,7 +31,9 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
     Set doc = wordApp.Documents.Open(templatePath, False, False)
 
     ApplyContextToDocument doc, ctx
-    doc.SaveAs2 outputPath, wdFormatXMLDocument
+
+    SaveDocumentCompat doc, outputPath
+
     doc.Close wdDoNotSaveChanges
 
     If createdWord Then wordApp.Quit wdDoNotSaveChanges
@@ -41,6 +43,22 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
 
     RenderTemplate = outputPath
 End Function
+
+Private Sub SaveDocumentCompat(ByVal doc As Object, ByVal outputPath As String)
+    On Error Resume Next
+    CallByName doc, "SaveAs2", VbMethod, outputPath, wdFormatXMLDocument
+    If Err.Number = 0 Then
+        On Error GoTo 0
+        Exit Sub
+    End If
+
+    Err.Clear
+    CallByName doc, "SaveAs", VbMethod, outputPath, wdFormatXMLDocument
+    If Err.Number <> 0 Then
+        Err.Raise Err.Number, "SaveDocumentCompat", Err.Description
+    End If
+    On Error GoTo 0
+End Sub
 
 Private Sub ApplyContextToDocument(ByVal doc As Object, ByVal ctx As Object)
     Dim story As Object
@@ -89,7 +107,7 @@ Private Sub ReplaceWildcardToken(ByVal rng As Object, ByVal tokenName As String,
         .MatchCase = False
         .MatchWholeWord = False
         .MatchWildcards = True
-        .Execute Replace:=wdReplaceAll
+        .Execute .Text, False, False, True, False, False, True, wdFindContinue, False, replaceText, wdReplaceAll
     End With
 End Sub
 
@@ -105,7 +123,7 @@ Private Sub ReplaceAllInRange(ByVal rng As Object, ByVal findText As String, ByV
         .MatchCase = False
         .MatchWholeWord = False
         .MatchWildcards = False
-        .Execute Replace:=wdReplaceAll
+        .Execute .Text, False, False, False, False, False, True, wdFindContinue, False, replaceText, wdReplaceAll
     End With
 End Sub
 

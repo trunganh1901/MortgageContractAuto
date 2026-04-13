@@ -25,7 +25,7 @@ Public Function LoadCfgTemplates(ByVal wb As Workbook) As Object
             rowDict("description") = CellText(ws.Cells(rowNo, "C").Value)
             rowDict("docx_file") = CellText(ws.Cells(rowNo, "D").Value)
             rowDict("file_prefix") = CellText(ws.Cells(rowNo, "E").Value)
-            cfg(code) = rowDict
+            Set cfg(code) = rowDict
         End If
     Next rowNo
 
