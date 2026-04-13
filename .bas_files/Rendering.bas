@@ -15,10 +15,16 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
         Err.Raise vbObjectError + 513, "RenderTemplate", "Missing template file: " & templatePath
     End If
 
+    Dim outputBase As String
+    Dim filePrefix As String
+
     outputRoot = BuildPath(wb.Path, "Output")
     outputFolder = BuildStructuredFolder(outputRoot, ctx, GetDictString(templateCfg, "template_code", "document"))
     EnsureFolderTreeExists outputFolder
-    outputPath = BuildAvailableOutputPath(outputFolder, GetDictString(ctx, "CIF", "") & "_" & GetDictString(ctx, "NAME", ""))
+    outputBase = GetDictString(ctx, "CIF", "") & "_" & GetDictString(ctx, "NAME", "")
+    filePrefix = GetDictString(templateCfg, "file_prefix", "")
+    If Len(Trim$(filePrefix)) > 0 Then outputBase = outputBase & "_" & filePrefix
+    outputPath = BuildAvailableOutputPath(outputFolder, outputBase)
 
     On Error Resume Next
     Set wordApp = GetObject(, "Word.Application")
