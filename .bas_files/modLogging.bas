@@ -22,7 +22,8 @@ Public Function CreateExportLog(ByVal wb As Workbook, ByVal ctx As Object, ByVal
     logEntry("duration_seconds") = 0
     logEntry("workbook_name") = wb.Name
     logEntry("workbook_path") = wb.FullName
-    logEntry("log_folder") = BuildPath(logRoot, Format$(ResolveOutputDate(ctx), "yyyy"), Format$(ResolveOutputDate(ctx), "yyyy-mm"))
+    logEntry("log_folder") = BuildPath(logRoot, Format$(ResolveOutputDate(ctx), "yyyy"))
+    logEntry("json_folder") = BuildPath(logRoot, Format$(ResolveOutputDate(ctx), "yyyy"), Format$(ResolveOutputDate(ctx), "yyyy-mm"))
     logEntry.Add "context", contextSnapshot
     logEntry("error_message") = vbNullString
 
@@ -52,6 +53,7 @@ End Function
 ' Outputs: Writes files to Logs folder. No return value.
 Public Sub SaveExportLog(ByVal logEntry As Object, ByVal outputs As Collection, ByVal finishedAt As Date, ByVal status As String, Optional ByVal errorMessage As String = "")
     Dim logFolder As String
+    Dim jsonFolder As String
     Dim jsonPath As String
     Dim csvPath As String
 
@@ -61,9 +63,11 @@ Public Sub SaveExportLog(ByVal logEntry As Object, ByVal outputs As Collection, 
     logEntry("error_message") = errorMessage
 
     logFolder = GetDictString(logEntry, "log_folder")
+    jsonFolder = GetDictString(logEntry, "json_folder")
     EnsureFolderTreeExists logFolder
+    EnsureFolderTreeExists jsonFolder
 
-    jsonPath = BuildPath(logFolder, GetDictString(logEntry, "run_id") & ".json")
+    jsonPath = BuildPath(jsonFolder, GetDictString(logEntry, "run_id") & ".json")
     csvPath = BuildPath(logFolder, "export_history.csv")
 
     WriteTextFileUtf8 jsonPath, ExportLogToJson(logEntry, outputs)
