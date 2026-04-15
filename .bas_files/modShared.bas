@@ -253,7 +253,7 @@ Public Function BuildStructuredFolder(ByVal rootPath As String, ByVal ctx As Obj
     outputDate = ResolveOutputDate(ctx)
     bucketName = ResolveOutputBucket(ctx, fallbackBucket)
 
-    BuildStructuredFolder = BuildPath(rootPath, Format$(outputDate, "yyyy"), Format$(outputDate, "mm"), bucketName)
+    BuildStructuredFolder = BuildPath(rootPath, Format$(outputDate, "yyyy"), Format$(outputDate, "yyyy-mm"), bucketName)
 End Function
 
 Public Function CleanWordCellText(ByVal text As String) As String
