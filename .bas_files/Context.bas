@@ -8,23 +8,27 @@ Public Function LoadCfgTemplates(ByVal wb As Workbook) As Object
     Dim rowNo As Long
     Dim code As String
     Dim rowDict As Object
+    Dim data As Variant
 
     Set ws = wb.Sheets("TEMPLATES")
     Set cfg = CreateObject("Scripting.Dictionary")
     cfg.CompareMode = 1
 
     lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    If lastRow < 2 Then Set LoadCfgTemplates = cfg: Exit Function
 
-    For rowNo = 2 To lastRow
-        code = Trim$(CellText(ws.Cells(rowNo, "B").Value))
+    data = ws.Range(ws.Cells(2, "A"), ws.Cells(lastRow, "E")).Value
+
+    For rowNo = 1 To lastRow - 1
+        code = Trim$(CellText(data(rowNo, 2)))
         If Len(code) > 0 Then
             Set rowDict = CreateObject("Scripting.Dictionary")
             rowDict.CompareMode = 1
-            rowDict("selected") = ParseEnabled(ws.Cells(rowNo, "A").Value)
+            rowDict("selected") = ParseEnabled(data(rowNo, 1))
             rowDict("template_code") = code
-            rowDict("description") = CellText(ws.Cells(rowNo, "C").Value)
-            rowDict("docx_file") = CellText(ws.Cells(rowNo, "D").Value)
-            rowDict("file_prefix") = CellText(ws.Cells(rowNo, "E").Value)
+            rowDict("description") = CellText(data(rowNo, 3))
+            rowDict("docx_file") = CellText(data(rowNo, 4))
+            rowDict("file_prefix") = CellText(data(rowNo, 5))
             Set cfg(code) = rowDict
         End If
     Next rowNo
@@ -39,6 +43,8 @@ Public Function BuildContext(ByVal wb As Workbook) As Object
     Dim rowNo As Long
     Dim keyText As String
     Dim valueText As String
+    Dim keysData As Variant
+    Dim valuesData As Variant
 
     Set ws = wb.Sheets("INPUT")
     Set ctx = CreateObject("Scripting.Dictionary")
@@ -48,10 +54,15 @@ Public Function BuildContext(ByVal wb As Workbook) As Object
         ws.Cells(ws.Rows.Count, "A").End(xlUp).Row, _
         ws.Cells(ws.Rows.Count, "D").End(xlUp).Row)
 
+    If lastRow < 1 Then Set BuildContext = ctx: Exit Function
+
+    keysData = ws.Range(ws.Cells(1, "A"), ws.Cells(lastRow, "A")).Value
+    valuesData = ws.Range(ws.Cells(1, "D"), ws.Cells(lastRow, "D")).Value
+
     For rowNo = 1 To lastRow
-        keyText = Trim$(CellText(ws.Cells(rowNo, "A").Value))
+        keyText = Trim$(CellText(keysData(rowNo, 1)))
         If Len(keyText) > 0 Then
-            valueText = ExcelCellText(ws.Cells(rowNo, "D").Value)
+            valueText = ExcelCellText(valuesData(rowNo, 1))
             If Len(valueText) > 0 Then
                 ctx(keyText) = valueText
             End If

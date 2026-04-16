@@ -37,6 +37,8 @@ Public Function RenderTemplate(ByVal templateCfg As Object, ByVal ctx As Object,
 
     wordApp.Visible = False
     Set doc = wordApp.Documents.Open(templatePath, False, False)
+    doc.SpellingChecked = True
+    doc.GrammarChecked = True
 
     ApplyContextToDocument doc, ctx
 
@@ -87,14 +89,8 @@ Private Sub ApplyScalarReplacements(ByVal rng As Object, ByVal ctx As Object)
 End Sub
 
 Private Sub ReplaceTokenInRange(ByVal rng As Object, ByVal tokenName As String, ByVal replaceText As String)
-    ReplaceAllInRange rng, "{{" & tokenName & "}}", replaceText
-    ReplaceAllInRange rng, "{{ " & tokenName & " }}", replaceText
-    ReplaceAllInRange rng, "{{" & tokenName & " }}", replaceText
-    ReplaceAllInRange rng, "{{ " & tokenName & "}}", replaceText
-
+    ' Single wildcard pass covers {{token}}, {{ token }}, and any number of spaces.
     ReplaceWildcardToken rng, tokenName, replaceText, True, True
-    ReplaceWildcardToken rng, tokenName, replaceText, True, False
-    ReplaceWildcardToken rng, tokenName, replaceText, False, True
 End Sub
 
 Private Sub ReplaceWildcardToken(ByVal rng As Object, ByVal tokenName As String, ByVal replaceText As String, ByVal allowLeftSpaces As Boolean, ByVal allowRightSpaces As Boolean)
@@ -109,32 +105,20 @@ Private Sub ReplaceWildcardToken(ByVal rng As Object, ByVal tokenName As String,
     ReplaceMatchesInRange rng, findPattern, replaceText, True
 End Sub
 
-Private Sub ReplaceAllInRange(ByVal rng As Object, ByVal findText As String, ByVal replaceText As String)
-    ReplaceMatchesInRange rng, findText, replaceText, False
-End Sub
-
 Private Sub ReplaceMatchesInRange(ByVal sourceRange As Object, ByVal findText As String, ByVal replaceText As String, ByVal useWildcards As Boolean)
-    Dim searchRange As Object
-
-    Set searchRange = sourceRange.Duplicate
-
-    With searchRange.Find
+    With sourceRange.Find
         .ClearFormatting
+        .Replacement.ClearFormatting
         .Text = findText
+        .Replacement.Text = replaceText
         .Forward = True
-        .Wrap = 0
+        .Wrap = wdFindContinue
         .Format = False
         .MatchCase = False
         .MatchWholeWord = False
         .MatchWildcards = useWildcards
+        .Execute Replace:=wdReplaceAll
     End With
-
-    Do While searchRange.Find.Execute
-        searchRange.Text = replaceText
-        searchRange.Collapse wdCollapseEnd
-    Loop
-
-    Set searchRange = Nothing
 End Sub
 
 Private Sub ApplyContextToStoryRange(ByVal storyRange As Object, ByVal ctx As Object)

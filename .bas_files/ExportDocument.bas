@@ -14,6 +14,10 @@ Public Function ExportDocument() As String
     Dim lastOutputPath As String
     Dim startedAt As Date
 
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.StatusBar = "Exporting document..."
+
     Set wb = ThisWorkbook
     Set cfg = LoadCfgTemplates(wb)
     Set ctx = BuildContext(wb)
@@ -24,6 +28,7 @@ Public Function ExportDocument() As String
     For Each templateCode In cfg.Keys
         Set templateCfg = cfg(CStr(templateCode))
         If GetDictBoolean(templateCfg, "selected") Then
+            Application.StatusBar = "Rendering: " & GetDictString(templateCfg, "description")
             lastOutputPath = RenderTemplate(templateCfg, ctx, wb)
             exportOutputs.Add CreateExportOutput(templateCfg, lastOutputPath)
         End If
@@ -34,11 +39,19 @@ Public Function ExportDocument() As String
     End If
 
     SaveExportLog logEntry, exportOutputs, Now, "success"
+
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+
     ExportDocument = lastOutputPath
     PromptOpenOutputFolder lastOutputPath
     Exit Function
 
 ErrorHandler:
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
     If Not logEntry Is Nothing Then
         If exportOutputs Is Nothing Then Set exportOutputs = New Collection
         SaveExportLog logEntry, exportOutputs, Now, "failed", Err.Description
