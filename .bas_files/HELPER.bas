@@ -1,6 +1,25 @@
 Attribute VB_Name = "HELPER"
 Option Explicit
 
+' Purpose: Write a progress message to the Excel status bar so users can see what is running.
+'          Calls DoEvents so the status bar repaints immediately.
+' Inputs:  message = text to display.
+' Outputs: Updates Application.StatusBar.
+Public Sub ShowStatus(ByVal message As String)
+    Application.StatusBar = message
+    DoEvents
+End Sub
+
+' Purpose: Restore the default Excel status bar (clears any message set by ShowStatus).
+' Inputs:  None.
+' Outputs: Resets Application.StatusBar to False (Excel default).
+Public Sub ClearStatus()
+    Application.StatusBar = False
+End Sub
+
+' Purpose: After a successful export, ask the user whether to open the output folder.
+' Inputs:  outputPath = full path of the generated DOCX (optional; defaults to Output\ root).
+' Outputs: Opens Explorer if the user chooses Yes.
 Public Sub PromptOpenOutputFolder(Optional ByVal outputPath As String = "")
     Dim folderPath As String
     Dim userChoice As VbMsgBoxResult
@@ -51,7 +70,7 @@ Function IncrementSTT_HD() As String
 
     For r = 1 To ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
         If Trim(UCase(ws.Cells(r, "A").Value)) = "STT_HD" Then
-            
+
             If IsNumeric(ws.Cells(r, "C").Value) Then
                 currentVal = CLng(ws.Cells(r, "C").Value)
             Else
@@ -87,4 +106,3 @@ Sub EnableAllButtons(Optional ws As Worksheet)
         End If
     Next shp
 End Sub
-

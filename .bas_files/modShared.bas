@@ -278,21 +278,32 @@ Public Function EscapeWordFindText(ByVal text As String) As String
 End Function
 
 Private Function RemoveVietnameseDiacritics(ByVal text As String) As String
+    ' Pre-allocate a result buffer the same length as input (output is always same length)
+    ' then fill it in-place with Mid$ assignment — avoids repeated string concatenation.
     Dim i As Long
+    Dim textLen As Long
     Dim ch As String
     Dim codePoint As Long
     Dim mappedChar As String
+    Dim result As String
 
-    For i = 1 To Len(text)
+    textLen = Len(text)
+    If textLen = 0 Then Exit Function
+
+    result = Space$(textLen)
+    For i = 1 To textLen
         ch = Mid$(text, i, 1)
         codePoint = AscW(ch)
         If codePoint < 0 Then codePoint = codePoint + 65536
-
         mappedChar = VietnameseBaseLetter(codePoint)
-        If Len(mappedChar) = 0 Then mappedChar = ch
-
-        RemoveVietnameseDiacritics = RemoveVietnameseDiacritics & mappedChar
+        If Len(mappedChar) > 0 Then
+            Mid$(result, i, 1) = mappedChar
+        Else
+            Mid$(result, i, 1) = ch
+        End If
     Next i
+
+    RemoveVietnameseDiacritics = result
 End Function
 
 Private Function VietnameseBaseLetter(ByVal codePoint As Long) As String
@@ -329,15 +340,27 @@ Private Function VietnameseBaseLetter(ByVal codePoint As Long) As String
 End Function
 
 Private Function KeepNumericChars(ByVal text As String) As String
+    ' Pre-allocate a buffer and track output length to avoid repeated concatenation.
     Dim i As Long
+    Dim textLen As Long
     Dim ch As String
+    Dim result As String
+    Dim outLen As Long
 
-    For i = 1 To Len(text)
+    textLen = Len(text)
+    If textLen = 0 Then Exit Function
+
+    result = Space$(textLen)
+    outLen = 0
+    For i = 1 To textLen
         ch = Mid$(text, i, 1)
         If (ch >= "0" And ch <= "9") Or ch = "." Or ch = "-" Then
-            KeepNumericChars = KeepNumericChars & ch
+            outLen = outLen + 1
+            Mid$(result, outLen, 1) = ch
         End If
     Next i
+
+    KeepNumericChars = Left$(result, outLen)
 End Function
 
 Private Function CountOccurrences(ByVal text As String, ByVal token As String) As Long
