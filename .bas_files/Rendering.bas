@@ -106,19 +106,51 @@ Private Sub ReplaceWildcardToken(ByVal rng As Object, ByVal tokenName As String,
 End Sub
 
 Private Sub ReplaceMatchesInRange(ByVal sourceRange As Object, ByVal findText As String, ByVal replaceText As String, ByVal useWildcards As Boolean)
-    With sourceRange.Find
+    ' Word's Find API caps Replacement.Text at 255 chars and does not reliably
+    ' handle vbCr paragraph marks. Use wdReplaceAll only for short plain values;
+    ' fall back to direct Range.Text assignment for long or multi-paragraph text.
+    If Len(replaceText) > 255 Or InStr(replaceText, vbCr) > 0 Then
+        ReplaceMatchesManual sourceRange, findText, replaceText, useWildcards
+    Else
+        With sourceRange.Find
+            .ClearFormatting
+            .Replacement.ClearFormatting
+            .Text = findText
+            .Replacement.Text = replaceText
+            .Forward = True
+            .Wrap = wdFindContinue
+            .Format = False
+            .MatchCase = False
+            .MatchWholeWord = False
+            .MatchWildcards = useWildcards
+            .Execute Replace:=wdReplaceAll
+        End With
+    End If
+End Sub
+
+Private Sub ReplaceMatchesManual(ByVal sourceRange As Object, ByVal findText As String, ByVal replaceText As String, ByVal useWildcards As Boolean)
+    ' Sets Range.Text directly: no 255-char limit, paragraph marks (vbCr) insert correctly.
+    Dim searchRange As Object
+
+    Set searchRange = sourceRange.Duplicate
+
+    With searchRange.Find
         .ClearFormatting
-        .Replacement.ClearFormatting
         .Text = findText
-        .Replacement.Text = replaceText
         .Forward = True
-        .Wrap = wdFindContinue
+        .Wrap = 0
         .Format = False
         .MatchCase = False
         .MatchWholeWord = False
         .MatchWildcards = useWildcards
-        .Execute Replace:=wdReplaceAll
     End With
+
+    Do While searchRange.Find.Execute
+        searchRange.Text = replaceText
+        searchRange.Collapse wdCollapseEnd
+    Loop
+
+    Set searchRange = Nothing
 End Sub
 
 Private Sub ApplyContextToStoryRange(ByVal storyRange As Object, ByVal ctx As Object)
