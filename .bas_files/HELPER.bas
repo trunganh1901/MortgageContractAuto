@@ -68,17 +68,17 @@ Function IncrementSTT_HD() As String
 
     Set ws = ThisWorkbook.ActiveSheet
 
-    For r = 1 To ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-        If Trim(UCase(ws.Cells(r, "A").Value)) = "STT_HD" Then
+    For r = 1 To ws.Cells(ws.Rows.count, "A").End(xlUp).Row
+        If Trim(UCase(ws.Cells(r, "A").value)) = "STT_HD" Then
 
-            If IsNumeric(ws.Cells(r, "C").Value) Then
-                currentVal = CLng(ws.Cells(r, "C").Value)
+            If IsNumeric(ws.Cells(r, "C").value) Then
+                currentVal = CLng(ws.Cells(r, "C").value)
             Else
                 currentVal = 0
             End If
 
-            ws.Cells(r, "C").Value = Format(currentVal + 1, "00")
-            IncrementSTT_HD = ws.Cells(r, "C").Value
+            ws.Cells(r, "C").value = Format(currentVal + 1, "00")
+            IncrementSTT_HD = ws.Cells(r, "C").value
 
             Exit Function
         End If
@@ -105,4 +105,86 @@ Sub EnableAllButtons(Optional ws As Worksheet)
             shp.ControlFormat.Enabled = True
         End If
     Next shp
+End Sub
+
+' Purpose: Show/hide and highlight INPUT sheet rows based on selected collateral type
+' Input:   COLLATERAL_TYPE named cell value (D28)
+' Output:  Rows hidden/shown and colored accordingly
+
+Public Sub ApplyCollateralVisibility()
+
+    On Error GoTo ErrorHandler
+    
+    Dim ws As Worksheet
+    Dim selectedType As String
+    Dim lastRow As Long
+    Dim i As Long
+    Dim key As String
+    Dim applicableTypes As String
+    
+    Set ws = ThisWorkbook.Sheets("INPUT")
+    
+    ' Read selected collateral type from named cell
+    selectedType = Trim(ThisWorkbook.Names("COLLATERAL_TYPE").RefersToRange.value)
+    
+    ' Exit if nothing selected yet
+    If selectedType = "" Then Exit Sub
+    
+    Application.ScreenUpdating = False
+    
+    ' Define colors
+    Dim COLOR_APPLICABLE As Long
+    Dim COLOR_HEADER As Long
+    Dim COLOR_NORMAL As Long
+    Dim COLOR_SELECTOR As Long
+    Dim COLOR_INPUT As Long
+    
+    COLOR_INPUT = RGB(255, 255, 153) ' Light yellow — editable column signal
+    COLOR_APPLICABLE = RGB(198, 224, 180) ' Light green
+    COLOR_HEADER = RGB(217, 217, 217)     ' Light grey
+    COLOR_NORMAL = RGB(255, 255, 255)     ' White
+    COLOR_SELECTOR = RGB(0, 70, 127)     ' BIDV dark blue
+    
+    lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).Row
+    
+    For i = 29 To lastRow
+        key = Trim(ws.Cells(i, "A").value)
+        applicableTypes = Trim(ws.Cells(i, "E").value)
+        
+        ' Selector row — always visible, always blue
+        If key = "collateral_type" Then
+            ws.Rows(i).Hidden = False
+            ws.Rows(i).Interior.Color = COLOR_SELECTOR
+            GoTo NextRow
+        End If
+        
+        ' Section header rows (blank key) — always visible, grey
+        If key = "" Then
+            ws.Rows(i).Hidden = False
+            ws.Rows(i).Interior.Color = COLOR_HEADER
+            GoTo NextRow
+        End If
+        
+        ' All other rows — check applicability
+        If InStr(1, applicableTypes, selectedType, vbTextCompare) > 0 Then
+            ' Applicable — show, highlight green, col C light yellow
+            ws.Rows(i).Hidden = False
+            ws.Rows(i).Interior.Color = COLOR_APPLICABLE
+            ws.Cells(i, "C").Interior.Color = COLOR_INPUT
+        Else
+            ' Not applicable — hide
+            ws.Rows(i).Hidden = True
+            ws.Rows(i).Interior.Color = COLOR_NORMAL
+        End If
+        
+NextRow:
+    Next i
+    
+    Application.ScreenUpdating = True
+    Exit Sub
+
+ErrorHandler:
+    Application.ScreenUpdating = True
+    MsgBox "L" & Chr(7895) & "i ApplyCollateralVisibility: " & Err.Description, vbCritical
+
 End Sub

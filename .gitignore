@@ -21,3 +21,13 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+
+# ==========================
+# JUPYTER NOTEBOOK CHECKPOINTS 
+# ==========================
+.ipynb_checkpoints/
+# ==========================
+# OS GENERATED FILES
+# ==========================
+.DS_Store
+Thumbs.db
