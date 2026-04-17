@@ -139,42 +139,41 @@ Public Sub ApplyCollateralVisibility()
     Dim COLOR_SELECTOR As Long
     Dim COLOR_INPUT As Long
     
-    COLOR_INPUT = RGB(255, 255, 153) ' Light yellow — editable column signal
+    COLOR_INPUT = RGB(255, 255, 153) ' Light yellow ï¿½ editable column signal
     COLOR_APPLICABLE = RGB(198, 224, 180) ' Light green
     COLOR_HEADER = RGB(217, 217, 217)     ' Light grey
     COLOR_NORMAL = RGB(255, 255, 255)     ' White
     COLOR_SELECTOR = RGB(0, 70, 127)     ' BIDV dark blue
     
-    lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).Row
-    
-    For i = 29 To lastRow
+    For i = 29 To 58
         key = Trim(ws.Cells(i, "A").value)
         applicableTypes = Trim(ws.Cells(i, "E").value)
         
-        ' Selector row — always visible, always blue
+        ' Selector row ï¿½ always visible, always blue
         If key = "collateral_type" Then
             ws.Rows(i).Hidden = False
             ws.Rows(i).Interior.Color = COLOR_SELECTOR
             GoTo NextRow
         End If
         
-        ' Section header rows (blank key) — always visible, grey
+        ' Section header rows (blank key) ï¿½ always visible, grey
         If key = "" Then
             ws.Rows(i).Hidden = False
             ws.Rows(i).Interior.Color = COLOR_HEADER
             GoTo NextRow
         End If
         
-        ' All other rows — check applicability
+        ' All other rows ï¿½ check applicability
         If InStr(1, applicableTypes, selectedType, vbTextCompare) > 0 Then
-            ' Applicable — show, highlight green, col C light yellow
+            ' Applicable ï¿½ show, highlight green, col C light yellow
             ws.Rows(i).Hidden = False
             ws.Rows(i).Interior.Color = COLOR_APPLICABLE
             ws.Cells(i, "C").Interior.Color = COLOR_INPUT
         Else
-            ' Not applicable — hide
+            ' Not applicable â€” hide and clear col C
             ws.Rows(i).Hidden = True
             ws.Rows(i).Interior.Color = COLOR_NORMAL
+            ws.Cells(i, "C").ClearContents
         End If
         
 NextRow:
