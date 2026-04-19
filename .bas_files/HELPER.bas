@@ -139,11 +139,11 @@ Public Sub ApplyCollateralVisibility()
     Dim COLOR_SELECTOR As Long
     Dim COLOR_INPUT As Long
     
-    COLOR_INPUT = RGB(255, 255, 153) ' Light yellow � editable column signal
+    COLOR_INPUT = RGB(255, 255, 153) ' Light yellow
     COLOR_APPLICABLE = RGB(198, 224, 180) ' Light green
     COLOR_HEADER = RGB(217, 217, 217)     ' Light grey
     COLOR_NORMAL = RGB(255, 255, 255)     ' White
-    COLOR_SELECTOR = RGB(0, 70, 127)     ' BIDV dark blue
+    COLOR_SELECTOR = RGB(0, 70, 127)    ' Dark blue
     
     For i = 29 To 58
         key = Trim(ws.Cells(i, "A").value)
