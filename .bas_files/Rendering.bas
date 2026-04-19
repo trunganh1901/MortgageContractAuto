@@ -71,15 +71,15 @@ End Function
 Private Sub SaveDocumentCompat(ByVal doc As Object, ByVal outputPath As String)
     On Error Resume Next
     CallByName doc, "SaveAs2", VbMethod, outputPath, wdFormatXMLDocument
-    If Err.Number = 0 Then
+    If Err.number = 0 Then
         On Error GoTo 0
         Exit Sub
     End If
 
     Err.Clear
     CallByName doc, "SaveAs", VbMethod, outputPath, wdFormatXMLDocument
-    If Err.Number <> 0 Then
-        Err.Raise Err.Number, "SaveDocumentCompat", Err.Description
+    If Err.number <> 0 Then
+        Err.Raise Err.number, "SaveDocumentCompat", Err.Description
     End If
     On Error GoTo 0
 End Sub
@@ -113,7 +113,7 @@ Private Sub ApplyNumericReplacements(ByVal rng As Object, ByVal ctx As Object)
     Dim formattedValue As String
     Dim numValue As Double
 
-    For Each key In ctx.Keys
+    For Each key In ctx.keys
         rawValue = CellText(ctx(key))
         numValue = ToNumber(rawValue)
         ' Substitute formatted number when parseable, otherwise fall back to raw value
@@ -144,7 +144,7 @@ Private Sub ApplyScalarReplacements(ByVal rng As Object, ByVal ctx As Object)
     Dim key As Variant
     Dim valueText As String
 
-    For Each key In ctx.Keys
+    For Each key In ctx.keys
         valueText = WordReplaceText(ctx(key))
         ReplaceTokenInRange rng, CStr(key), valueText
         ' Early exit: stop once all placeholders in this range are consumed.
@@ -164,7 +164,7 @@ Private Function RangeContainsText(ByVal rng As Object, ByVal searchText As Stri
     Set checkRange = rng.Duplicate
     With checkRange.Find
         .ClearFormatting
-        .Text = searchText
+        .text = searchText
         .Forward = True
         .Wrap = 0
         .Format = False
@@ -223,7 +223,7 @@ Private Sub ReplaceMatchesInRange(ByVal sourceRange As Object, ByVal findText As
 
     With searchRange.Find
         .ClearFormatting
-        .Text = findText
+        .text = findText
         .Forward = True
         .Wrap = 0
         .Format = False
@@ -233,7 +233,7 @@ Private Sub ReplaceMatchesInRange(ByVal sourceRange As Object, ByVal findText As
     End With
 
     Do While searchRange.Find.Execute
-        searchRange.Text = replaceText
+        searchRange.text = replaceText
         searchRange.Collapse wdCollapseEnd
     Loop
 

@@ -19,7 +19,7 @@ Public Function LoadCfgTemplates(ByVal wb As Workbook) As Object
     Set cfg = CreateObject("Scripting.Dictionary")
     cfg.CompareMode = 1
 
-    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.count, "B").End(xlUp).Row
 
     If lastRow < 2 Then
         Set LoadCfgTemplates = cfg
@@ -27,7 +27,7 @@ Public Function LoadCfgTemplates(ByVal wb As Workbook) As Object
     End If
 
     ' Read columns A-E in one array read (much faster than per-cell access)
-    data = ws.Range("A2:E" & lastRow).Value
+    data = ws.Range("A2:E" & lastRow).value
 
     For rowNo = 1 To lastRow - 1
         code = Trim$(CellText(data(rowNo, 2)))
@@ -65,8 +65,8 @@ Public Function BuildContext(ByVal wb As Workbook) As Object
     ctx.CompareMode = 1
 
     lastRow = Application.WorksheetFunction.Max( _
-        ws.Cells(ws.Rows.Count, "A").End(xlUp).Row, _
-        ws.Cells(ws.Rows.Count, "D").End(xlUp).Row)
+        ws.Cells(ws.Rows.count, "A").End(xlUp).Row, _
+        ws.Cells(ws.Rows.count, "D").End(xlUp).Row)
 
     If lastRow < 1 Then
         Set BuildContext = ctx
@@ -74,8 +74,8 @@ Public Function BuildContext(ByVal wb As Workbook) As Object
     End If
 
     ' Read both columns as arrays in two round-trips instead of 2*lastRow round-trips
-    dataA = ws.Range("A1:A" & lastRow).Value
-    dataD = ws.Range("D1:D" & lastRow).Value
+    dataA = ws.Range("A1:A" & lastRow).value
+    dataD = ws.Range("D1:D" & lastRow).value
 
     For rowNo = 1 To lastRow
         keyText = Trim$(CellText(dataA(rowNo, 1)))

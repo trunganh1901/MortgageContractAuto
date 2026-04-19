@@ -371,7 +371,7 @@ Private Function RegexReplace(ByVal text As String, ByVal pattern As String, ByV
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
     re.Global = True
-    re.Pattern = pattern
+    re.pattern = pattern
     RegexReplace = re.Replace(text, replaceWith)
 End Function
 
@@ -391,13 +391,13 @@ Private Function TryParseDateText(ByVal text As String, ByRef parsedDate As Date
             If Len(parts(0)) = 4 Then
                 On Error Resume Next
                 parsedDate = DateSerial(CLng(parts(0)), CLng(parts(1)), CLng(parts(2)))
-                TryParseDateText = (Err.Number = 0)
+                TryParseDateText = (Err.number = 0)
                 On Error GoTo 0
                 If TryParseDateText Then Exit Function
             ElseIf Len(parts(2)) = 4 Then
                 On Error Resume Next
                 parsedDate = DateSerial(CLng(parts(2)), CLng(parts(1)), CLng(parts(0)))
-                TryParseDateText = (Err.Number = 0)
+                TryParseDateText = (Err.number = 0)
                 On Error GoTo 0
                 If TryParseDateText Then Exit Function
             End If
@@ -406,6 +406,6 @@ Private Function TryParseDateText(ByVal text As String, ByRef parsedDate As Date
 
     On Error Resume Next
     parsedDate = CDate(text)
-    TryParseDateText = (Err.Number = 0)
+    TryParseDateText = (Err.number = 0)
     On Error GoTo 0
 End Function
