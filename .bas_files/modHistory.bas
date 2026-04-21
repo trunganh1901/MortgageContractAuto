@@ -93,10 +93,14 @@ Public Sub BrowseExportHistory()
     For idx = 1 To runCount
         Dim parts() As String
         parts = Split(runs(idx - 1), "|")
+        ' parts: 0=run_id, 1=json_path, 2=started_at, 3=status, 4=customer_name, 5=cif, 6=output_name
+        Dim displayName As String
+        displayName = parts(4)
+        If Len(Trim$(displayName)) = 0 Then displayName = parts(6)
         listText = listText & idx & ".  " & _
             parts(2) & "  " & _
             "[" & parts(3) & "]  " & _
-            "CIF=" & parts(5) & "  " & parts(4) & vbCrLf
+            "CIF=" & parts(5) & "  " & displayName & vbCrLf
     Next idx
 
     choice = InputBox(listText, "Browse Export History", "1")
@@ -121,9 +125,13 @@ Public Sub BrowseExportHistory()
         Exit Sub
     End If
 
+    Dim confirmName As String
+    confirmName = parts(4)
+    If Len(Trim$(confirmName)) = 0 Then confirmName = parts(6)
+
     If MsgBox( _
         "Load run from " & parts(2) & "?" & vbCrLf & _
-        "CIF: " & parts(5) & "   Customer: " & parts(4) & vbCrLf & vbCrLf & _
+        "CIF: " & parts(5) & "   Customer: " & confirmName & vbCrLf & vbCrLf & _
         "This will overwrite editable fields (column C) on the INPUT sheet." & vbCrLf & vbCrLf & _
         "Continue?", _
         vbQuestion + vbYesNo, "Load Historical Data") = vbNo Then
@@ -210,23 +218,26 @@ Private Function RestoreContextFromJson(ByVal jsonText As String, ByVal wb As Wo
 End Function
 
 ' Purpose: Walk Logs/<YYYY>/export_history.csv files and return up to 20
-'          most recent run rows as pipe-delimited strings.
+'          most recent unique runs as pipe-delimited strings.
 ' Inputs:  logsRoot = path to the Logs folder, runs() = output array (resized
 '          here), runCount = number of valid rows written.
 ' Outputs: Populates runs() and runCount.
+' Pipe format: run_id|json_path|started_at|status|customer_name|cif|output_name
 Private Sub CollectRecentRuns(ByVal logsRoot As String, ByRef runs() As String, ByRef runCount As Long)
     Const MAX_RUNS As Long = 20
 
     Dim fso As Object
     Dim yearFolders As Object
-    Dim yearFolder As Object
     Dim csvPath As String
     Dim csvLines() As String
     Dim lineNo As Long
     Dim cols() As String
+    Dim seenIds As Object
 
     ReDim runs(0 To MAX_RUNS - 1)
     runCount = 0
+    Set seenIds = CreateObject("Scripting.Dictionary")
+    seenIds.CompareMode = 1
 
     Set fso = CreateObject("Scripting.FileSystemObject")
     If Not fso.FolderExists(logsRoot) Then Exit Sub
@@ -260,7 +271,8 @@ Private Sub CollectRecentRuns(ByVal logsRoot As String, ByRef runs() As String, 
         csvPath = BuildPath(logsRoot, yearNames(a), "export_history.csv")
         If Dir$(csvPath, vbNormal) = vbNullString Then GoTo NextYear
 
-        csvLines = Split(ReadTextFileUtf8(csvPath), vbLf)
+        ' Normalize CRLF → LF so Trim$ reliably clears each line
+        csvLines = Split(Replace$(ReadTextFileUtf8(csvPath), vbCr, vbNullString), vbLf)
 
         ' Read from the bottom (newest rows) upward; skip header (line 0)
         For lineNo = UBound(csvLines) To 1 Step -1
@@ -276,7 +288,12 @@ Private Sub CollectRecentRuns(ByVal logsRoot As String, ByRef runs() As String, 
             ' 14=context_key_count, 15=error_message, 16=json_path
             If UBound(cols) < 16 Then GoTo NextLine
 
-            runs(runCount) = cols(0) & "|" & cols(16) & "|" & cols(2) & "|" & cols(1) & "|" & cols(11) & "|" & cols(12)
+            ' Deduplicate: one entry per run_id (multiple rows exist per run)
+            If seenIds.Exists(cols(0)) Then GoTo NextLine
+            seenIds(cols(0)) = True
+
+            ' Include output_name (col 9) so we can display it when customer_name is blank
+            runs(runCount) = cols(0) & "|" & cols(16) & "|" & cols(2) & "|" & cols(1) & "|" & cols(11) & "|" & cols(12) & "|" & cols(9)
             runCount = runCount + 1
             If runCount >= MAX_RUNS Then Exit Sub
 
